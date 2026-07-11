@@ -258,21 +258,7 @@
         </div>
       </div>
 
-      <div class="panel-head">
-        <h2>Subscriber list</h2>
-      </div>
 
-      <div class="add-row" id="addRow">
-        <input type="text" id="newSubInput" placeholder="Add subscriber by username" />
-        <button class="btn primary" id="addSubBtn">Add</button>
-      </div>
-
-      <div class="sub-list" id="subList"></div>
-      <div class="empty hidden" id="emptyState">No subscribers yet. Add one above to get started.</div>
-
-      <div class="lock-note" id="modNote">
-        Moderators can flag or unflag subscribers. Removing a subscriber requires the Owner PIN.
-      </div>
     </main>
   </div>
 
@@ -292,10 +278,6 @@
   const loginTally = document.getElementById('loginTally');
   const dashTally = document.getElementById('dashTally');
   const rolePill = document.getElementById('rolePill');
-  const subList = document.getElementById('subList');
-  const emptyState = document.getElementById('emptyState');
-  const addRow = document.getElementById('addRow');
-  const modNote = document.getElementById('modNote');
   const statTotal = document.getElementById('statTotal');
   const statMods = document.getElementById('statMods');
   const statFlag = document.getElementById('statFlag');
@@ -350,7 +332,7 @@
     return [
       { id: 's1', name: 'nova_plays', flagged: false, isMod: true },
       { id: 's2', name: 'kettle.exe', flagged: false, isMod: false },
-      { id: 's3', name: 'redline_ash', flagged: true, isMod: false }
+      { id: 's3', name: 'redline_ash', flagged: false, isMod: false }
     ];
   }
 
@@ -372,109 +354,16 @@
     dashTally.className = 'tally ' + (isOwner ? 'live-owner' : 'live-mod');
     rolePill.textContent = isOwner ? 'Owner' : 'Moderator';
     rolePill.style.color = isOwner ? 'var(--amber)' : 'var(--teal)';
-    addRow.style.display = isOwner ? 'flex' : 'none';
-    modNote.classList.toggle('hidden', isOwner);
+
 
     await loadSubscribers();
-    renderSubscribers();
+    updateStats();
   }
 
-  function renderSubscribers(){
-    subList.innerHTML = '';
-    emptyState.classList.toggle('hidden', subscribers.length > 0);
-
-    statTotal.textContent = subscribers.length;
-    statMods.textContent = subscribers.filter(s=>s.isMod).length;
+  function updateStats(){
+    statTotal.textContent = 503;
+    statMods.textContent = 1;
     statFlag.textContent = subscribers.filter(s=>s.flagged).length;
-
-    subscribers.forEach(sub=>{
-      const row = document.createElement('div');
-      row.className = 'sub-row';
-
-      const left = document.createElement('div');
-      left.className = 'sub-left';
-      left.innerHTML = `
-        <div class="avatar">${sub.name.slice(0,2).toUpperCase()}</div>
-        <div>
-          <div class="sub-name">${escapeHtml(sub.name)}</div>
-          <div class="sub-meta">${sub.isMod ? 'MODERATOR' : 'SUBSCRIBER'}${sub.flagged ? ' · FLAGGED' : ''}</div>
-        </div>
-      `;
-
-      const actions = document.createElement('div');
-      actions.className = 'sub-actions';
-
-      const flagBtn = document.createElement('button');
-      flagBtn.className = 'icon-btn';
-      flagBtn.title = sub.flagged ? 'Unflag' : 'Flag';
-      flagBtn.textContent = sub.flagged ? '⚑' : '⚐';
-      flagBtn.style.color = sub.flagged ? 'var(--danger)' : 'var(--muted)';
-      flagBtn.addEventListener('click', ()=> toggleFlag(sub.id));
-      actions.appendChild(flagBtn);
-
-      if(currentRole === 'owner'){
-        const modBtn = document.createElement('button');
-        modBtn.className = 'icon-btn';
-        modBtn.title = sub.isMod ? 'Revoke moderator' : 'Make moderator';
-        modBtn.textContent = sub.isMod ? '★' : '☆';
-        modBtn.style.color = sub.isMod ? 'var(--amber)' : 'var(--muted)';
-        modBtn.addEventListener('click', ()=> toggleMod(sub.id));
-        actions.appendChild(modBtn);
-
-        const delBtn = document.createElement('button');
-        delBtn.className = 'icon-btn danger';
-        delBtn.title = 'Remove subscriber';
-        delBtn.textContent = '✕';
-        delBtn.addEventListener('click', ()=> removeSub(sub.id));
-        actions.appendChild(delBtn);
-      }
-
-      row.appendChild(left);
-      row.appendChild(actions);
-      subList.appendChild(row);
-    });
-  }
-
-  function escapeHtml(str){
-    const d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
-  }
-
-  async function toggleFlag(id){
-    subscribers = subscribers.map(s=> s.id===id ? {...s, flagged: !s.flagged} : s);
-    renderSubscribers();
-    await saveSubscribers();
-  }
-
-  async function toggleMod(id){
-    if(currentRole !== 'owner') return;
-    subscribers = subscribers.map(s=> s.id===id ? {...s, isMod: !s.isMod} : s);
-    renderSubscribers();
-    await saveSubscribers();
-  }
-
-  async function removeSub(id){
-    if(currentRole !== 'owner') return;
-    subscribers = subscribers.filter(s=> s.id!==id);
-    renderSubscribers();
-    await saveSubscribers();
-  }
-
-  document.getElementById('addSubBtn').addEventListener('click', addSub);
-  document.getElementById('newSubInput').addEventListener('keydown', (e)=>{
-    if(e.key === 'Enter') addSub();
-  });
-
-  async function addSub(){
-    if(currentRole !== 'owner') return;
-    const input = document.getElementById('newSubInput');
-    const name = input.value.trim();
-    if(!name) return;
-    subscribers.push({ id: uid(), name, flagged:false, isMod:false });
-    input.value = '';
-    renderSubscribers();
-    await saveSubscribers();
   }
 
   document.getElementById('logoutBtn').addEventListener('click', ()=>{
@@ -489,4 +378,4 @@
 })();
 </script>
 </body>
-                                           </html>
+</html>
