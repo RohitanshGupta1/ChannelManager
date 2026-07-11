@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ON AIR — Channel Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0B0F14;
+    --panel: #121821;
+    --panel-2: #171F2A;
+    --line: #232E3D;
+    --text: #E6EDF3;
+    --muted: #8A97A8;
+    --amber: #FFB84D;
+    --amber-dim: #6B5228;
+    --teal: #2DD4BF;
+    --teal-dim: #17554D;
+    --danger: #FF5C5C;
+    --danger-dim: #5A2323;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background: radial-gradient(1200px 600px at 50% -10%, #141C27 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,h2,h3, .display{ font-family:'Space Grotesk', sans-serif; }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+
+  /* ---------- Scanline atmosphere ---------- */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
+    pointer-events:none;
+    z-index: 999;
+  }
+
+  /* ---------- Layout shells ---------- */
+  .screen{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .hidden{ display:none !important; }
+
+  /* ---------- Tally light (signature element) ---------- */
+  .tally{
+    width:14px; height:14px; border-radius:50%;
+    background: var(--muted);
+    box-shadow: none;
+    transition: all .4s ease;
+    flex-shrink:0;
+  }
+  .tally.live-owner{ background: var(--amber); box-shadow: 0 0 8px 2px var(--amber), 0 0 22px 6px rgba(255,184,77,0.35); animation: pulse 2.2s ease-in-out infinite; }
+  .tally.live-mod{ background: var(--teal); box-shadow: 0 0 8px 2px var(--teal), 0 0 22px 6px rgba(45,212,191,0.35); animation: pulse 2.2s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.55; } }
+
+  /* ---------- Login (keypad) ---------- */
+  .login-card{
+    width:100%; max-width:380px;
+    background: linear-gradient(180deg, var(--panel) 0%, #0F141C 100%);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:32px 28px 28px;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.6);
+  }
+  .login-head{ display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .eyebrow{ color:var(--muted); font-size:12px; letter-spacing:.14em; text-transform:uppercase; }
+  .login-card h1{ font-size:22px; margin:6px 0 2px; }
+  .login-sub{ color:var(--muted); font-size:13px; margin:0 0 22px; }
+
+  .pin-display{
+    display:flex; gap:10px; justify-content:center; margin-bottom:22px;
+  }
+  .pin-dot{
+    width:14px; height:14px; border-radius:50%;
+    border:2px solid var(--line);
+    background:transparent;
+    transition: all .15s ease;
+  }
+  .pin-dot.filled{ background: var(--amber); border-color: var(--amber); }
+
+  .keypad{ display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; }
+  .key{
+    padding:16px 0;
+    background: var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:10px;
+    color: var(--text);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:18px;
+    cursor:pointer;
+    transition: background .12s ease, transform .08s ease;
+  }
+  .key:hover{ background:#1D2733; }
+  .key:active{ transform: scale(0.96); }
+  .key.wide{ font-size:13px; color:var(--muted); }
+
+  .login-error{
+    color: var(--danger); font-size:13px; margin-top:14px; min-height:16px; text-align:center;
+  }
+
+  /* ---------- Dashboard ---------- */
+  .app{ min-height:100vh; }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 24px;
+    border-bottom:1px solid var(--line);
+    background: rgba(18,24,33,0.7);
+    backdrop-filter: blur(6px);
+    position: sticky; top:0; z-index: 10;
+  }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand-title{ font-size:16px; letter-spacing:.02em; }
+  .role-pill{
+    display:flex; align-items:center; gap:8px;
+    padding:6px 12px; border-radius:999px;
+    border:1px solid var(--line); background: var(--panel-2);
+    font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted);
+  }
+  .topbar-right{ display:flex; align-items:center; gap:12px; }
+  .btn{
+    border:1px solid var(--line); background:var(--panel-2); color:var(--text);
+    padding:9px 14px; border-radius:9px; font-size:13px; cursor:pointer;
+    font-family:'IBM Plex Sans', sans-serif;
+    transition: background .12s ease, border-color .12s ease;
+  }
+  .btn:hover{ background:#1D2733; }
+  .btn.ghost{ background:transparent; color:var(--muted); }
+  .btn.danger{ border-color: var(--danger-dim); color: var(--danger); }
+  .btn.danger:hover{ background: var(--danger-dim); }
+  .btn.primary{ border-color: var(--amber-dim); color: var(--amber); }
+  .btn.primary:hover{ background: var(--amber-dim); }
+  .btn:disabled{ opacity:.35; cursor:not-allowed; }
+
+  main{ max-width:920px; margin:0 auto; padding:28px 24px 60px; }
+
+  .stat-row{ display:grid; grid-template-columns: repeat(3,1fr); gap:14px; margin-bottom:26px; }
+  .stat{
+    background: var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px;
+  }
+  .stat .num{ font-family:'IBM Plex Mono', monospace; font-size:26px; }
+  .stat .label{ color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.08em; margin-top:4px; }
+
+  .panel-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .panel-head h2{ font-size:15px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0; }
+
+  .add-row{ display:flex; gap:10px; margin-bottom:18px; }
+  .add-row input{
+    flex:1; background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    padding:11px 14px; border-radius:9px; font-family:'IBM Plex Sans'; font-size:14px;
+  }
+  .add-row input:focus{ outline:1px solid var(--amber); border-color:var(--amber); }
+
+  .sub-list{ display:flex; flex-direction:column; gap:8px; }
+  .sub-row{
+    display:flex; align-items:center; justify-content:space-between;
+    background: var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:12px 16px;
+  }
+  .sub-left{ display:flex; align-items:center; gap:12px; }
+  .avatar{
+    width:34px; height:34px; border-radius:8px;
+    background: var(--panel-2); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono'; font-size:13px; color: var(--muted);
+  }
+  .sub-name{ font-size:14px; }
+  .sub-meta{ font-size:11px; color:var(--muted); font-family:'IBM Plex Mono', monospace; margin-top:2px; }
+  .sub-actions{ display:flex; gap:8px; }
+  .icon-btn{
+    border:1px solid var(--line); background:transparent; color:var(--muted);
+    width:30px; height:30px; border-radius:7px; cursor:pointer; font-size:14px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .icon-btn:hover{ background: var(--panel-2); color:var(--text); }
+  .icon-btn.danger:hover{ background: var(--danger-dim); color:var(--danger); border-color:var(--danger-dim); }
+
+  .empty{
+    text-align:center; padding:40px 20px; color:var(--muted); border:1px dashed var(--line); border-radius:12px; font-size:13px;
+  }
+
+  .lock-note{
+    display:flex; gap:8px; align-items:flex-start; margin-top:24px;
+    background: var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 14px;
+    font-size:12px; color:var(--muted);
+  }
+
+  @media (max-width:560px){
+    .stat-row{ grid-template-columns: 1fr; }
+    .topbar{ padding:14px 16px; }
+    main{ padding:20px 14px 50px; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen" class="screen">
+    <div class="login-card">
+      <div class="login-head">
+        <div id="loginTally" class="tally"></div>
+        <span class="eyebrow">Console Access</span>
+      </div>
+      <h1>Enter your PIN</h1>
+      <p class="login-sub">Your PIN determines your role for this session.</p>
+
+      <div class="pin-display" id="pinDisplay"></div>
+
+      <div class="keypad" id="keypad">
+        <button class="key" data-num="1">1</button>
+        <button class="key" data-num="2">2</button>
+        <button class="key" data-num="3">3</button>
+        <button class="key" data-num="4">4</button>
+        <button class="key" data-num="5">5</button>
+        <button class="key" data-num="6">6</button>
+        <button class="key" data-num="7">7</button>
+        <button class="key" data-num="8">8</button>
+        <button class="key" data-num="9">9</button>
+        <button class="key wide" id="clearKey">Clear</button>
+        <button class="key" data-num="0">0</button>
+        <button class="key wide" id="backKey">⌫</button>
+      </div>
+
+      <div class="login-error" id="loginError"></div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="app" class="app hidden">
+    <div class="topbar">
+      <div class="brand">
+        <div id="dashTally" class="tally"></div>
+        <span class="brand-title display">Channel Console</span>
+      </div>
+      <div class="topbar-right">
+        <div class="role-pill" id="rolePill">Role</div>
+        <button class="btn ghost" id="logoutBtn">Switch role</button>
+      </div>
+    </div>
+
+    <main>
+      <div class="stat-row">
+        <div class="stat">
+          <div class="num mono" id="statTotal">0</div>
+          <div class="label">Subscribers</div>
+        </div>
+        <div class="stat">
+          <div class="num mono" id="statMods">0</div>
+          <div class="label">Moderators</div>
+        </div>
+        <div class="stat">
+          <div class="num mono" id="statFlag">0</div>
+          <div class="label">Flagged</div>
+        </div>
+      </div>
+
+      <div class="panel-head">
+        <h2>Subscriber list</h2>
+      </div>
+
+      <div class="add-row" id="addRow">
+        <input type="text" id="newSubInput" placeholder="Add subscriber by username" />
+        <button class="btn primary" id="addSubBtn">Add</button>
+      </div>
+
+      <div class="sub-list" id="subList"></div>
+      <div class="empty hidden" id="emptyState">No subscribers yet. Add one above to get started.</div>
+
+      <div class="lock-note" id="modNote">
+        Moderators can flag or unflag subscribers. Removing a subscriber requires the Owner PIN.
+      </div>
+    </main>
+  </div>
+
+<script>
+(function(){
+  const PINS = { '101089': 'owner', '0000': 'moderator' };
+  const STORAGE_KEY = 'channel-console:subscribers';
+
+  let currentRole = null;
+  let subscribers = [];
+  let pinBuffer = '';
+
+  const loginScreen = document.getElementById('loginScreen');
+  const app = document.getElementById('app');
+  const pinDisplay = document.getElementById('pinDisplay');
+  const loginError = document.getElementById('loginError');
+  const loginTally = document.getElementById('loginTally');
+  const dashTally = document.getElementById('dashTally');
+  const rolePill = document.getElementById('rolePill');
+  const subList = document.getElementById('subList');
+  const emptyState = document.getElementById('emptyState');
+  const addRow = document.getElementById('addRow');
+  const modNote = document.getElementById('modNote');
+  const statTotal = document.getElementById('statTotal');
+  const statMods = document.getElementById('statMods');
+  const statFlag = document.getElementById('statFlag');
+
+  function renderPinDots(){
+    pinDisplay.innerHTML = '';
+    const len = Math.max(pinBuffer.length, 4);
+    for(let i=0;i<Math.max(4, pinBuffer.length);i++){
+      const dot = document.createElement('div');
+      dot.className = 'pin-dot' + (i < pinBuffer.length ? ' filled' : '');
+      pinDisplay.appendChild(dot);
+    }
+  }
+  renderPinDots();
+
+  document.getElementById('keypad').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.key');
+    if(!btn) return;
+    if(btn.id === 'clearKey'){ pinBuffer = ''; loginError.textContent=''; renderPinDots(); return; }
+    if(btn.id === 'backKey'){ pinBuffer = pinBuffer.slice(0,-1); loginError.textContent=''; renderPinDots(); return; }
+    const num = btn.getAttribute('data-num');
+    if(num !== null && pinBuffer.length < 6){
+      pinBuffer += num;
+      renderPinDots();
+      tryLogin();
+    }
+  });
+
+  function tryLogin(){
+    if(PINS[pinBuffer]){
+      currentRole = PINS[pinBuffer];
+      pinBuffer = '';
+      loginError.textContent = '';
+      enterApp();
+    } else if(pinBuffer.length >= 6){
+      loginError.textContent = 'Incorrect PIN. Try again.';
+      pinBuffer = '';
+      renderPinDots();
+    }
+  }
+
+  async function loadSubscribers(){
+    try{
+      const result = await window.storage.get(STORAGE_KEY, false);
+      subscribers = result ? JSON.parse(result.value) : defaultSubscribers();
+    }catch(err){
+      subscribers = defaultSubscribers();
+    }
+  }
+
+  function defaultSubscribers(){
+    return [
+      { id: 's1', name: 'nova_plays', flagged: false, isMod: true },
+      { id: 's2', name: 'kettle.exe', flagged: false, isMod: false },
+      { id: 's3', name: 'redline_ash', flagged: true, isMod: false }
+    ];
+  }
+
+  async function saveSubscribers(){
+    try{
+      await window.storage.set(STORAGE_KEY, JSON.stringify(subscribers), false);
+    }catch(err){
+      console.error('Could not save subscribers', err);
+    }
+  }
+
+  function uid(){ return 's' + Math.random().toString(36).slice(2,9); }
+
+  async function enterApp(){
+    loginScreen.classList.add('hidden');
+    app.classList.remove('hidden');
+
+    const isOwner = currentRole === 'owner';
+    dashTally.className = 'tally ' + (isOwner ? 'live-owner' : 'live-mod');
+    rolePill.textContent = isOwner ? 'Owner' : 'Moderator';
+    rolePill.style.color = isOwner ? 'var(--amber)' : 'var(--teal)';
+    addRow.style.display = isOwner ? 'flex' : 'none';
+    modNote.classList.toggle('hidden', isOwner);
+
+    await loadSubscribers();
+    renderSubscribers();
+  }
+
+  function renderSubscribers(){
+    subList.innerHTML = '';
+    emptyState.classList.toggle('hidden', subscribers.length > 0);
+
+    statTotal.textContent = subscribers.length;
+    statMods.textContent = subscribers.filter(s=>s.isMod).length;
+    statFlag.textContent = subscribers.filter(s=>s.flagged).length;
+
+    subscribers.forEach(sub=>{
+      const row = document.createElement('div');
+      row.className = 'sub-row';
+
+      const left = document.createElement('div');
+      left.className = 'sub-left';
+      left.innerHTML = `
+        <div class="avatar">${sub.name.slice(0,2).toUpperCase()}</div>
+        <div>
+          <div class="sub-name">${escapeHtml(sub.name)}</div>
+          <div class="sub-meta">${sub.isMod ? 'MODERATOR' : 'SUBSCRIBER'}${sub.flagged ? ' · FLAGGED' : ''}</div>
+        </div>
+      `;
+
+      const actions = document.createElement('div');
+      actions.className = 'sub-actions';
+
+      const flagBtn = document.createElement('button');
+      flagBtn.className = 'icon-btn';
+      flagBtn.title = sub.flagged ? 'Unflag' : 'Flag';
+      flagBtn.textContent = sub.flagged ? '⚑' : '⚐';
+      flagBtn.style.color = sub.flagged ? 'var(--danger)' : 'var(--muted)';
+      flagBtn.addEventListener('click', ()=> toggleFlag(sub.id));
+      actions.appendChild(flagBtn);
+
+      if(currentRole === 'owner'){
+        const modBtn = document.createElement('button');
+        modBtn.className = 'icon-btn';
+        modBtn.title = sub.isMod ? 'Revoke moderator' : 'Make moderator';
+        modBtn.textContent = sub.isMod ? '★' : '☆';
+        modBtn.style.color = sub.isMod ? 'var(--amber)' : 'var(--muted)';
+        modBtn.addEventListener('click', ()=> toggleMod(sub.id));
+        actions.appendChild(modBtn);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'icon-btn danger';
+        delBtn.title = 'Remove subscriber';
+        delBtn.textContent = '✕';
+        delBtn.addEventListener('click', ()=> removeSub(sub.id));
+        actions.appendChild(delBtn);
+      }
+
+      row.appendChild(left);
+      row.appendChild(actions);
+      subList.appendChild(row);
+    });
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  async function toggleFlag(id){
+    subscribers = subscribers.map(s=> s.id===id ? {...s, flagged: !s.flagged} : s);
+    renderSubscribers();
+    await saveSubscribers();
+  }
+
+  async function toggleMod(id){
+    if(currentRole !== 'owner') return;
+    subscribers = subscribers.map(s=> s.id===id ? {...s, isMod: !s.isMod} : s);
+    renderSubscribers();
+    await saveSubscribers();
+  }
+
+  async function removeSub(id){
+    if(currentRole !== 'owner') return;
+    subscribers = subscribers.filter(s=> s.id!==id);
+    renderSubscribers();
+    await saveSubscribers();
+  }
+
+  document.getElementById('addSubBtn').addEventListener('click', addSub);
+  document.getElementById('newSubInput').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter') addSub();
+  });
+
+  async function addSub(){
+    if(currentRole !== 'owner') return;
+    const input = document.getElementById('newSubInput');
+    const name = input.value.trim();
+    if(!name) return;
+    subscribers.push({ id: uid(), name, flagged:false, isMod:false });
+    input.value = '';
+    renderSubscribers();
+    await saveSubscribers();
+  }
+
+  document.getElementById('logoutBtn').addEventListener('click', ()=>{
+    currentRole = null;
+    pinBuffer = '';
+    loginError.textContent = '';
+    renderPinDots();
+    app.classList.add('hidden');
+    loginScreen.classList.remove('hidden');
+  });
+
+})();
+</script>
+</body>
+                                           </html>
